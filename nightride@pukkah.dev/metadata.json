@@ -1,0 +1,8 @@
+{
+    "name": "Nightride FM",
+    "description": "Nightride.fm internet radio player for GNOME Shell",
+    "uuid": "nightride@pukkah.dev",
+    "settings-schema": "org.gnome.shell.extensions.nightride",
+    "shell-version": ["46"],
+    "url": "https://nightride.fm"
+}

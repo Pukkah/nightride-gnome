@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="nightride">
+  <schema id="org.gnome.shell.extensions.nightride"
+          path="/org/gnome/shell/extensions/nightride/">
+
+    <key name="volume" type="d">
+      <default>0.5</default>
+      <summary>Playback volume</summary>
+      <description>Volume level for the audio stream (0.0 to 1.0)</description>
+      <range min="0.0" max="1.0"/>
+    </key>
+
+    <key name="station" type="s">
+      <default>'nightride'</default>
+      <summary>Selected station</summary>
+      <description>Key of the currently selected station</description>
+    </key>
+
+  </schema>
+</schemalist>
