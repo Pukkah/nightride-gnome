@@ -9,12 +9,13 @@ Nightride FM — a GNOME Shell extension that adds a panel indicator for streami
 ## Project Structure
 
 The entire extension lives in `nightride@pukkah.dev/`:
-- `extension.js` — Single-file implementation (~225 lines). Contains `NightrideIndicator` (panel button + dropdown menu) and `NightrideExtension` (enable/disable lifecycle).
+- `extension.js` — Single-file implementation (~380 lines). Contains `NightrideIndicator` (panel button + dropdown menu) and `NightrideExtension` (enable/disable lifecycle).
 - `metadata.json` — Extension metadata (uuid, shell-version, settings-schema)
 - `schemas/org.gnome.shell.extensions.nightride.gschema.xml` — GSettings schema for `volume` (double) and `station` (string)
 - `schemas/gschemas.compiled` — Pre-compiled GSettings binary
 - `icons/nightride-symbolic.svg` — Panel icon
-- `stylesheet.css` — Minimal CSS (volume slider width)
+- `noise.png` — Tiled noise texture for the animated overlay in the controls row
+- `stylesheet.css` — CSS for the controls UI (gradient stack, play/mute buttons, volume slider styling)
 
 ## Development
 
@@ -31,12 +32,19 @@ glib-compile-schemas nightride@pukkah.dev/schemas/
 
 ## Architecture
 
-Audio playback uses GStreamer's `playbin` element. The flow: `_ensurePipeline()` creates the playbin → `_play()` sets the stream URI and state to PLAYING → on GStreamer bus errors, `_scheduleReconnect()` retries after 5 seconds. Settings (volume, selected station) persist via GSettings.
+Audio playback uses GStreamer's `playbin` element. The flow: `_createPipeline()` creates the playbin → `_play()` sets the stream URI and state to PLAYING → on GStreamer bus errors, `_scheduleReconnect()` retries after 5 seconds. Settings (volume, selected station) persist via GSettings.
 
-The `STATIONS` array at the top of `extension.js` defines all available stations as `{key, label, url}` objects with HLS stream URLs.
+The `STATIONS` array at the top of `extension.js` defines all available stations as `{key, label, url}` objects with MP3 stream URLs. `STATION_GRADIENTS` maps each station key to a `{start, end}` hex color pair for the controls row background.
+
+### Menu UI
+
+The popup menu has two sections:
+1. **Controls row** — a layered stack (gradient background → animated noise overlay → controls box). The controls box contains a play/stop button, volume slider, and mute toggle. The noise overlay uses a tiled `noise.png` loaded via `GdkPixbuf` → `Clutter.Image` with `content_repeat: BOTH`, animated by randomly flipping X/Y scale every 120ms while playing.
+2. **Station list** — standard `PopupMenuItem`s with dot ornaments for the active station.
 
 ## Key GJS/GNOME Patterns
 
-- Imports use `gi://` protocol for GObject introspection bindings and `resource:///` for Shell internals
+- Imports use `gi://` protocol for GObject introspection bindings (Gio, GLib, GObject, Gst, St, Clutter, Cogl, GdkPixbuf) and `resource:///` for Shell internals
 - Classes registered with `GObject.registerClass()` for GObject type system integration
-- Extension lifecycle: `enable()` creates the indicator, `disable()` must clean up all resources (pipelines, signals, timeouts)
+- Extension lifecycle: `enable()` creates the indicator, `disable()` must clean up all resources (pipelines, signals, timeouts, noise animation timer)
+- Code style: 2-space indent, double quotes, Prettier-formatted
