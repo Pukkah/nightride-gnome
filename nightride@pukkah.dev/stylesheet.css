@@ -1,3 +1,39 @@
+.nightride-controls-item {
+  padding: 0 !important;
+}
+.nightride-controls-item:hover,
+.nightride-controls-item:focus,
+.nightride-controls-item:active {
+  background-color: transparent !important;
+}
+.nightride-controls-stack {
+  border-radius: 8px;
+}
+.nightride-gradient {
+  border-radius: 8px;
+}
+.nightride-noise {
+  border-radius: 8px;
+  opacity: 50;
+}
+.nightride-controls-box {
+  padding: 8px 12px;
+  spacing: 8px;
+}
+.nightride-play-button,
+.nightride-mute-button {
+  padding: 4px;
+  color: white;
+}
+.nightride-play-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 8px;
+  icon-size: 24px;
+}
 .nightride-volume-slider {
-    width: 250px;
+  width: 180px;
+  -barlevel-active-background-color: rgba(255, 255, 255, 0.8);
+  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  color: white;
 }
