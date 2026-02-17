@@ -264,7 +264,7 @@ const NightrideIndicator = GObject.registerClass(
       for (const item of this._stationItems) {
         item.setOrnament(
           item._stationKey === this._currentStation
-            ? PopupMenu.Ornament.DOT
+            ? PopupMenu.Ornament.CHECK
             : PopupMenu.Ornament.NONE,
         );
       }
