@@ -17,6 +17,7 @@
 }
 .nightride-controls-stack {
   border-radius: 8px;
+  min-width: 300px;
 }
 .nightride-gradient {
   border-radius: 8px;
@@ -26,33 +27,36 @@
   opacity: 50;
 }
 .nightride-controls-box {
-  padding: 8px 12px;
-  spacing: 8px;
-}
-.nightride-play-button,
-.nightride-mute-button {
-  padding: 4px;
-  color: white;
+  padding: 10px 12px;
+  spacing: 12px;
 }
 .nightride-play-button {
   background-color: rgba(255, 255, 255, 0.2);
   border-radius: 999px;
-  padding: 8px;
-  icon-size: 24px;
-}
-.nightride-volume-slider {
-  width: 180px;
-  -barlevel-active-background-color: rgba(255, 255, 255, 0.8);
-  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  padding: 14px;
   color: white;
 }
-.nightride-now-playing-item {
-  padding: 4px 12px !important;
+.nightride-play-button:hover,
+.nightride-play-button:focus,
+.nightride-play-button:active {
+  background-color: rgba(255, 255, 255, 0.4);
 }
-.nightride-now-playing-item:hover,
-.nightride-now-playing-item:focus,
-.nightride-now-playing-item:active {
-  background-color: transparent !important;
+.nightride-play-icon {
+  icon-size: 32px;
+  color: white;
+}
+.nightride-right-column {
+  spacing: 4px;
+}
+.nightride-station-label {
+  font-weight: bold;
+  color: white;
+}
+.nightride-volume-slider {
+  -barlevel-active-background-color: rgba(255, 255, 255, 0.8);
+  -barlevel-background-color: rgba(255, 255, 255, 0.2);
+  -slider-handle-radius: 4px;
+  color: white;
 }
 .nightride-now-playing {
   font-style: italic;

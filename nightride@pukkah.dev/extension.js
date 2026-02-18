@@ -55,7 +55,6 @@ const NightrideIndicator = GObject.registerClass(
       this._busWatchId = 0;
       this._reconnectTimeoutId = 0;
       this._signalIds = [];
-      this._lastVolume = 0.5;
       this._noiseTimerId = 0;
       this._currentTrack = null;
       this._marqueeTimeoutId = 0;
@@ -163,20 +162,21 @@ const NightrideIndicator = GObject.registerClass(
       this._noiseLayer.set_pivot_point(0.5, 0.5);
       stack.add_child(this._noiseLayer);
 
-      // Controls box
+      // Controls box (two-column layout)
       const controlsBox = new St.BoxLayout({
         style_class: "nightride-controls-box",
         x_expand: true,
         vertical: false,
       });
 
-      // Play/Pause button
+      // Play/Pause button (large, left column)
       this._playButton = new St.Button({
         child: new St.Icon({
           icon_name: "media-playback-start-symbolic",
-          style_class: "popup-menu-icon",
+          style_class: "nightride-play-icon",
         }),
         style_class: "nightride-play-button",
+        y_align: Clutter.ActorAlign.START,
       });
       this._playButton.connect("clicked", () => {
         if (this._playing) this._stop();
@@ -184,42 +184,20 @@ const NightrideIndicator = GObject.registerClass(
       });
       controlsBox.add_child(this._playButton);
 
-      // Volume slider
-      this._volumeSlider = new Slider.Slider(0.5);
-      this._volumeSlider.add_style_class_name("nightride-volume-slider");
-      this._volumeSlider.x_expand = true;
-      this._volumeSlider.connect("notify::value", () => {
-        const vol = this._volumeSlider.value;
-        this._settings.set_double("volume", vol);
-        if (this._pipeline) this._pipeline.set_property("volume", vol);
-        if (vol > 0) this._lastVolume = vol;
-        this._updateMuteIcon();
+      // Right column: station label, now-playing, volume row
+      const rightColumn = new St.BoxLayout({
+        style_class: "nightride-right-column",
+        vertical: true,
+        x_expand: true,
       });
-      controlsBox.add_child(this._volumeSlider);
 
-      // Mute button
-      this._muteButton = new St.Button({
-        child: new St.Icon({
-          icon_name: "audio-volume-medium-symbolic",
-          style_class: "popup-menu-icon",
-        }),
-        style_class: "nightride-mute-button",
+      // Station label
+      this._stationLabel = new St.Label({
+        style_class: "nightride-station-label",
       });
-      this._muteButton.connect("clicked", () => {
-        this._toggleMute();
-      });
-      controlsBox.add_child(this._muteButton);
+      rightColumn.add_child(this._stationLabel);
 
-      stack.add_child(controlsBox);
-      controlsItem.add_child(stack);
-      this.menu.addMenuItem(controlsItem);
-
-      // Now playing label
-      this._nowPlayingItem = new PopupMenu.PopupBaseMenuItem({
-        activate: false,
-        reactive: false,
-      });
-      this._nowPlayingItem.add_style_class_name("nightride-now-playing-item");
+      // Now playing marquee
       this._nowPlayingClip = new _MarqueeClip({
         clip_to_allocation: true,
         x_expand: true,
@@ -229,9 +207,23 @@ const NightrideIndicator = GObject.registerClass(
         style_class: "nightride-now-playing",
       });
       this._nowPlayingClip.add_child(this._nowPlayingLabel);
-      this._nowPlayingItem.add_child(this._nowPlayingClip);
-      this._nowPlayingItem.visible = false;
-      this.menu.addMenuItem(this._nowPlayingItem);
+      this._nowPlayingLabel.text = "\u00A0";
+      rightColumn.add_child(this._nowPlayingClip);
+
+      this._volumeSlider = new Slider.Slider(0.5);
+      this._volumeSlider.add_style_class_name("nightride-volume-slider");
+      this._volumeSlider.x_expand = true;
+      this._volumeSlider.connect("notify::value", () => {
+        const vol = this._volumeSlider.value;
+        this._settings.set_double("volume", vol);
+        if (this._pipeline) this._pipeline.set_property("volume", vol);
+      });
+      rightColumn.add_child(this._volumeSlider);
+      controlsBox.add_child(rightColumn);
+
+      stack.add_child(controlsBox);
+      controlsItem.add_child(stack);
+      this.menu.addMenuItem(controlsItem);
 
       // Separator
       this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -266,17 +258,17 @@ const NightrideIndicator = GObject.registerClass(
       const stationKey = this._settings.get_string("station");
 
       this._volumeSlider.value = volume;
-      if (volume > 0) this._lastVolume = volume;
       this._currentStation = stationKey;
       this._updateStationOrnaments();
+      this._updateStationLabel();
       this._updateGradient();
-      this._updateMuteIcon();
     }
 
     _selectStation(key) {
       this._currentStation = key;
       this._settings.set_string("station", key);
       this._updateStationOrnaments();
+      this._updateStationLabel();
       this._updateGradient();
       this._currentTrack = null;
       this._updateNowPlaying();
@@ -287,34 +279,13 @@ const NightrideIndicator = GObject.registerClass(
       }
     }
 
-    _toggleMute() {
-      if (this._volumeSlider.value > 0) {
-        this._lastVolume = this._volumeSlider.value;
-        this._volumeSlider.value = 0;
-      } else {
-        this._volumeSlider.value = this._lastVolume;
-      }
-    }
-
-    _updateMuteIcon() {
-      const vol = this._volumeSlider.value;
-      let iconName;
-      if (vol === 0) iconName = "audio-volume-muted-symbolic";
-      else if (vol < 0.33) iconName = "audio-volume-low-symbolic";
-      else if (vol < 0.66) iconName = "audio-volume-medium-symbolic";
-      else iconName = "audio-volume-high-symbolic";
-      this._muteButton.child.icon_name = iconName;
-    }
-
     _updateNowPlaying() {
       this._stopMarquee();
       if (this._currentTrack) {
         this._nowPlayingLabel.text = this._currentTrack;
-        this._nowPlayingItem.visible = true;
         if (this.menu.isOpen) this._scheduleMarquee();
       } else {
-        this._nowPlayingLabel.text = "";
-        this._nowPlayingItem.visible = false;
+        this._nowPlayingLabel.text = "\u00A0";
       }
     }
 
@@ -369,6 +340,11 @@ const NightrideIndicator = GObject.registerClass(
       }
       this._nowPlayingLabel.remove_all_transitions();
       this._nowPlayingLabel.translation_x = 0;
+    }
+
+    _updateStationLabel() {
+      const station = STATIONS.find((s) => s.key === this._currentStation);
+      if (station) this._stationLabel.text = station.label;
     }
 
     _updateGradient() {
