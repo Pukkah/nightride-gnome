@@ -9,13 +9,13 @@ Nightride FM — a GNOME Shell extension that adds a panel indicator for streami
 ## Project Structure
 
 The entire extension lives in `nightride@pukkah.dev/`:
-- `extension.js` — Single-file implementation (~540 lines). Contains `_MarqueeClip` (clip container for now-playing marquee), `NightrideIndicator` (panel button + dropdown menu), and `NightrideExtension` (enable/disable lifecycle).
+- `extension.js` — Single-file implementation (~516 lines). Contains `_MarqueeClip` (clip container for now-playing marquee), `NightrideIndicator` (panel button + dropdown menu), and `NightrideExtension` (enable/disable lifecycle).
 - `metadata.json` — Extension metadata (uuid, shell-version, settings-schema)
 - `schemas/org.gnome.shell.extensions.nightride.gschema.xml` — GSettings schema for `volume` (double) and `station` (string)
 - `schemas/gschemas.compiled` — Pre-compiled GSettings binary
 - `icons/nightride-symbolic.svg` — Panel icon
 - `noise.png` — Tiled noise texture for the animated overlay in the controls row
-- `stylesheet.css` — CSS for the controls UI (gradient stack, play/mute buttons, volume slider styling)
+- `stylesheet.css` — CSS for the controls UI (gradient stack, play button, volume slider styling)
 
 ## Development
 
@@ -38,10 +38,9 @@ The `STATIONS` array at the top of `extension.js` defines all available stations
 
 ### Menu UI
 
-The popup menu has three sections:
-1. **Controls row** — a layered stack (gradient background → animated noise overlay → controls box). The controls box contains a play/stop button, volume slider, and mute toggle. The noise overlay uses a tiled `noise.png` loaded via `GdkPixbuf` → `Clutter.Image` with `content_repeat: BOTH`, animated by randomly flipping X/Y scale every 120ms while playing.
-2. **Now-playing label** — shows current track title from GStreamer `tag` bus messages. Uses a `_MarqueeClip` container (`St.Widget` subclass returning `[0, 0]` preferred width) with `FixedLayout` + `clip_to_allocation` so long titles are clipped to menu width and scroll via `Clutter.ease()` marquee animation (2s pause → scroll left at ~40px/s → 1.5s pause → reset → repeat).
-3. **Station list** — standard `PopupMenuItem`s with check ornaments for the active station.
+The popup menu has two sections:
+1. **Controls row** — a layered stack (gradient background → animated noise overlay → two-column controls box). The left column is a large play/stop button. The right column contains the station label, now-playing marquee, and volume slider. The noise overlay uses a tiled `noise.png` loaded via `GdkPixbuf` → `Clutter.Image` with `content_repeat: BOTH`, animated by randomly flipping X/Y scale every 120ms while playing. The now-playing row uses a `_MarqueeClip` container (`St.Widget` subclass returning `[0, 0]` preferred width) with `FixedLayout` + `clip_to_allocation` so long titles are clipped and scroll via `Clutter.ease()` marquee animation (2s pause → scroll left at ~40px/s → 1.5s pause → reset → repeat). The clip is always visible with a `"\u00A0"` placeholder when no track is playing, reserving the row height so the volume slider doesn't shift.
+2. **Station list** — standard `PopupMenuItem`s with check ornaments for the active station.
 
 ## Key GJS/GNOME Patterns
 
