@@ -38,7 +38,7 @@ const STATION_GRADIENTS = {
 const NightrideIndicator = GObject.registerClass(
   class NightrideIndicator extends PanelMenu.Button {
     _init(ext) {
-      super._init(0.0, "Nightride FM");
+      super._init(0.5, "Nightride FM");
 
       this._ext = ext;
       this._settings = ext.getSettings();
@@ -50,14 +50,26 @@ const NightrideIndicator = GObject.registerClass(
       this._lastVolume = 0.5;
       this._noiseTimerId = 0;
 
-      // Panel icon
+      // Panel icon with play badge overlay
       const iconPath = ext.path + "/icons/nightride-symbolic.svg";
       const gicon = Gio.icon_new_for_string(iconPath);
       this._icon = new St.Icon({
         gicon,
-        style_class: "system-status-icon",
+        style_class: "system-status-icon nightride-status-icon",
       });
-      this.add_child(this._icon);
+
+      this._playBadge = new St.Widget({
+        style_class: "nightride-play-badge",
+        visible: false,
+      });
+
+      const iconContainer = new St.Widget({
+        layout_manager: new Clutter.BinLayout(),
+        style_class: "nightride-icon-container",
+      });
+      iconContainer.add_child(this._playBadge);
+      iconContainer.add_child(this._icon);
+      this.add_child(iconContainer);
 
       this._buildMenu();
       this._loadSettings();
@@ -323,6 +335,7 @@ const NightrideIndicator = GObject.registerClass(
       this._pipeline.set_property("uri", url);
       this._pipeline.set_state(Gst.State.PLAYING);
       this._playing = true;
+      this._playBadge.show();
       this._playButton.child.icon_name = "media-playback-stop-symbolic";
       if (this.menu.isOpen) this._startNoiseAnimation();
     }
@@ -331,6 +344,7 @@ const NightrideIndicator = GObject.registerClass(
       this._cancelReconnect();
       this._destroyPipeline();
       this._playing = false;
+      this._playBadge.hide();
       this._playButton.child.icon_name = "media-playback-start-symbolic";
       this._stopNoiseAnimation();
     }
