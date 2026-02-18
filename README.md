@@ -5,15 +5,16 @@ A GNOME Shell extension that adds a panel indicator for streaming [nightride.fm]
 ![GNOME 46](https://img.shields.io/badge/GNOME-46-blue)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
-## Stations
+## Features
 
-- Nightride FM
-- Chillsynth FM
-- Darksynth
-- Datawave FM
-- Spacesynth FM
-- Horrorsynth
-- EBSM
+- Stream 7 stations: Nightride FM, Chillsynth FM, Datawave FM, Spacesynth FM, Darksynth, Horrorsynth, EBSM
+- Panel icon with play indicator badge
+- Middle-click panel icon to toggle playback
+- Scroll on panel icon to adjust volume
+- Per-station gradient backgrounds with animated noise overlay
+- Now-playing track display with marquee scrolling for long titles
+- Volume slider and mute toggle
+- Remembers volume and station selection between sessions
 
 ## Installation
 
