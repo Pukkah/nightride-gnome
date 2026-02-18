@@ -9,7 +9,7 @@ Nightride FM — a GNOME Shell extension that adds a panel indicator for streami
 ## Project Structure
 
 The entire extension lives in `nightride@pukkah.dev/`:
-- `extension.js` — Single-file implementation (~380 lines). Contains `NightrideIndicator` (panel button + dropdown menu) and `NightrideExtension` (enable/disable lifecycle).
+- `extension.js` — Single-file implementation (~540 lines). Contains `_MarqueeClip` (clip container for now-playing marquee), `NightrideIndicator` (panel button + dropdown menu), and `NightrideExtension` (enable/disable lifecycle).
 - `metadata.json` — Extension metadata (uuid, shell-version, settings-schema)
 - `schemas/org.gnome.shell.extensions.nightride.gschema.xml` — GSettings schema for `volume` (double) and `station` (string)
 - `schemas/gschemas.compiled` — Pre-compiled GSettings binary
@@ -38,13 +38,14 @@ The `STATIONS` array at the top of `extension.js` defines all available stations
 
 ### Menu UI
 
-The popup menu has two sections:
+The popup menu has three sections:
 1. **Controls row** — a layered stack (gradient background → animated noise overlay → controls box). The controls box contains a play/stop button, volume slider, and mute toggle. The noise overlay uses a tiled `noise.png` loaded via `GdkPixbuf` → `Clutter.Image` with `content_repeat: BOTH`, animated by randomly flipping X/Y scale every 120ms while playing.
-2. **Station list** — standard `PopupMenuItem`s with dot ornaments for the active station.
+2. **Now-playing label** — shows current track title from GStreamer `tag` bus messages. Uses a `_MarqueeClip` container (`St.Widget` subclass returning `[0, 0]` preferred width) with `FixedLayout` + `clip_to_allocation` so long titles are clipped to menu width and scroll via `Clutter.ease()` marquee animation (2s pause → scroll left at ~40px/s → 1.5s pause → reset → repeat).
+3. **Station list** — standard `PopupMenuItem`s with check ornaments for the active station.
 
 ## Key GJS/GNOME Patterns
 
-- Imports use `gi://` protocol for GObject introspection bindings (Gio, GLib, GObject, Gst, St, Clutter, Cogl, GdkPixbuf) and `resource:///` for Shell internals
+- Imports use `gi://` protocol for GObject introspection bindings (Gio, GLib, GObject, Gst, St, Clutter, Cogl, GdkPixbuf) and `resource:///` for Shell internals. No Pango import — marquee scrolling replaced ellipsize.
 - Classes registered with `GObject.registerClass()` for GObject type system integration
-- Extension lifecycle: `enable()` creates the indicator, `disable()` must clean up all resources (pipelines, signals, timeouts, noise animation timer)
+- Extension lifecycle: `enable()` creates the indicator, `disable()` must clean up all resources (pipelines, signals, timeouts, noise animation timer, marquee timer/transitions)
 - Code style: 2-space indent, double quotes, Prettier-formatted
