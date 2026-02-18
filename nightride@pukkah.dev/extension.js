@@ -5,6 +5,7 @@ import Gst from "gi://Gst";
 import St from "gi://St";
 import Clutter from "gi://Clutter";
 import Cogl from "gi://Cogl";
+import Pango from "gi://Pango";
 import GdkPixbuf from "gi://GdkPixbuf";
 
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
@@ -49,6 +50,7 @@ const NightrideIndicator = GObject.registerClass(
       this._signalIds = [];
       this._lastVolume = 0.5;
       this._noiseTimerId = 0;
+      this._currentTrack = null;
 
       // Panel icon with play badge overlay
       const iconPath = ext.path + "/icons/nightride-symbolic.svg";
@@ -71,8 +73,40 @@ const NightrideIndicator = GObject.registerClass(
       iconContainer.add_child(this._icon);
       this.add_child(iconContainer);
 
+      this.connect("scroll-event", (_actor, event) => this._onScroll(event));
+
       this._buildMenu();
       this._loadSettings();
+    }
+
+    vfunc_event(event) {
+      if (
+        event.type() === Clutter.EventType.BUTTON_PRESS &&
+        event.get_button() === 2
+      ) {
+        if (this._playing) this._stop();
+        else this._play();
+        return Clutter.EVENT_STOP;
+      }
+      return super.vfunc_event(event);
+    }
+
+    _onScroll(event) {
+      const dir = event.get_scroll_direction();
+      let delta = 0;
+      if (dir === Clutter.ScrollDirection.UP) delta = 0.05;
+      else if (dir === Clutter.ScrollDirection.DOWN) delta = -0.05;
+      else if (dir === Clutter.ScrollDirection.SMOOTH) {
+        const [, dy] = event.get_scroll_delta();
+        delta = -dy * 0.05;
+      }
+      if (delta !== 0)
+        this._volumeSlider.value = Math.clamp(
+          this._volumeSlider.value + delta,
+          0,
+          1,
+        );
+      return Clutter.EVENT_STOP;
     }
 
     _buildMenu() {
@@ -172,6 +206,21 @@ const NightrideIndicator = GObject.registerClass(
       controlsItem.add_child(stack);
       this.menu.addMenuItem(controlsItem);
 
+      // Now playing label
+      this._nowPlayingItem = new PopupMenu.PopupBaseMenuItem({
+        activate: false,
+        reactive: false,
+      });
+      this._nowPlayingItem.add_style_class_name("nightride-now-playing-item");
+      this._nowPlayingLabel = new St.Label({
+        style_class: "nightride-now-playing",
+        x_expand: true,
+      });
+      this._nowPlayingLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+      this._nowPlayingItem.add_child(this._nowPlayingLabel);
+      this._nowPlayingItem.visible = false;
+      this.menu.addMenuItem(this._nowPlayingItem);
+
       // Separator
       this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -212,6 +261,8 @@ const NightrideIndicator = GObject.registerClass(
       this._settings.set_string("station", key);
       this._updateStationOrnaments();
       this._updateGradient();
+      this._currentTrack = null;
+      this._updateNowPlaying();
 
       if (this._playing) {
         this._stop();
@@ -236,6 +287,16 @@ const NightrideIndicator = GObject.registerClass(
       else if (vol < 0.66) iconName = "audio-volume-medium-symbolic";
       else iconName = "audio-volume-high-symbolic";
       this._muteButton.child.icon_name = iconName;
+    }
+
+    _updateNowPlaying() {
+      if (this._currentTrack) {
+        this._nowPlayingLabel.text = this._currentTrack;
+        this._nowPlayingItem.visible = true;
+      } else {
+        this._nowPlayingLabel.text = "";
+        this._nowPlayingItem.visible = false;
+      }
     }
 
     _updateGradient() {
@@ -307,6 +368,14 @@ const NightrideIndicator = GObject.registerClass(
         this._stop();
         this._scheduleReconnect();
       });
+      this._busTagId = bus.connect("message::tag", (_bus, msg) => {
+        const tagList = msg.parse_tag();
+        const [success, title] = tagList.get_string("title");
+        if (success && title) {
+          this._currentTrack = title;
+          this._updateNowPlaying();
+        }
+      });
 
       return true;
     }
@@ -316,12 +385,16 @@ const NightrideIndicator = GObject.registerClass(
 
       this._pipeline.set_state(Gst.State.NULL);
 
+      const bus = this._pipeline.get_bus();
+      if (this._busTagId) {
+        bus.disconnect(this._busTagId);
+        this._busTagId = 0;
+      }
       if (this._busWatchId) {
-        const bus = this._pipeline.get_bus();
         bus.disconnect(this._busWatchId);
-        bus.remove_signal_watch();
         this._busWatchId = 0;
       }
+      bus.remove_signal_watch();
 
       this._pipeline = null;
     }
@@ -347,6 +420,8 @@ const NightrideIndicator = GObject.registerClass(
       this._playBadge.hide();
       this._playButton.child.icon_name = "media-playback-start-symbolic";
       this._stopNoiseAnimation();
+      this._currentTrack = null;
+      this._updateNowPlaying();
     }
 
     _scheduleReconnect() {
