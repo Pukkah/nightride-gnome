@@ -5,7 +5,6 @@ import Gst from "gi://Gst";
 import St from "gi://St";
 import Clutter from "gi://Clutter";
 import Cogl from "gi://Cogl";
-import Pango from "gi://Pango";
 import GdkPixbuf from "gi://GdkPixbuf";
 
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
@@ -36,6 +35,14 @@ const STATION_GRADIENTS = {
   ebsm: { start: "#ffffff", end: "#666666" },
 };
 
+const _MarqueeClip = GObject.registerClass(
+  class NightrideMarqueeClip extends St.Widget {
+    vfunc_get_preferred_width(_forHeight) {
+      return [0, 0];
+    }
+  },
+);
+
 const NightrideIndicator = GObject.registerClass(
   class NightrideIndicator extends PanelMenu.Button {
     _init(ext) {
@@ -51,6 +58,7 @@ const NightrideIndicator = GObject.registerClass(
       this._lastVolume = 0.5;
       this._noiseTimerId = 0;
       this._currentTrack = null;
+      this._marqueeTimeoutId = 0;
 
       // Panel icon with play badge overlay
       const iconPath = ext.path + "/icons/nightride-symbolic.svg";
@@ -212,12 +220,16 @@ const NightrideIndicator = GObject.registerClass(
         reactive: false,
       });
       this._nowPlayingItem.add_style_class_name("nightride-now-playing-item");
+      this._nowPlayingClip = new _MarqueeClip({
+        clip_to_allocation: true,
+        x_expand: true,
+        layout_manager: new Clutter.FixedLayout(),
+      });
       this._nowPlayingLabel = new St.Label({
         style_class: "nightride-now-playing",
-        x_expand: true,
       });
-      this._nowPlayingLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-      this._nowPlayingItem.add_child(this._nowPlayingLabel);
+      this._nowPlayingClip.add_child(this._nowPlayingLabel);
+      this._nowPlayingItem.add_child(this._nowPlayingClip);
       this._nowPlayingItem.visible = false;
       this.menu.addMenuItem(this._nowPlayingItem);
 
@@ -239,8 +251,13 @@ const NightrideIndicator = GObject.registerClass(
 
       // Start/stop noise animation when menu opens/closes
       this.menu.connect("open-state-changed", (_menu, open) => {
-        if (open && this._playing) this._startNoiseAnimation();
-        else this._stopNoiseAnimation();
+        if (open) {
+          if (this._playing) this._startNoiseAnimation();
+          if (this._currentTrack) this._scheduleMarquee();
+        } else {
+          this._stopNoiseAnimation();
+          this._stopMarquee();
+        }
       });
     }
 
@@ -290,13 +307,68 @@ const NightrideIndicator = GObject.registerClass(
     }
 
     _updateNowPlaying() {
+      this._stopMarquee();
       if (this._currentTrack) {
         this._nowPlayingLabel.text = this._currentTrack;
         this._nowPlayingItem.visible = true;
+        if (this.menu.isOpen) this._scheduleMarquee();
       } else {
         this._nowPlayingLabel.text = "";
         this._nowPlayingItem.visible = false;
       }
+    }
+
+    _scheduleMarquee() {
+      this._stopMarquee();
+      this._marqueeTimeoutId = GLib.timeout_add(
+        GLib.PRIORITY_DEFAULT,
+        100,
+        () => {
+          this._marqueeTimeoutId = 0;
+          const clipWidth = this._nowPlayingClip.allocation.get_width();
+          const [, labelWidth] = this._nowPlayingLabel.get_preferred_width(-1);
+          if (clipWidth > 0 && labelWidth > clipWidth)
+            this._runMarquee(labelWidth - clipWidth);
+          return GLib.SOURCE_REMOVE;
+        },
+      );
+    }
+
+    _runMarquee(overflow) {
+      this._marqueeTimeoutId = GLib.timeout_add(
+        GLib.PRIORITY_DEFAULT,
+        2000,
+        () => {
+          this._marqueeTimeoutId = 0;
+          this._nowPlayingLabel.ease({
+            translation_x: -overflow,
+            duration: overflow * 25,
+            mode: Clutter.AnimationMode.LINEAR,
+            onComplete: () => {
+              this._marqueeTimeoutId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT,
+                1500,
+                () => {
+                  this._marqueeTimeoutId = 0;
+                  this._nowPlayingLabel.translation_x = 0;
+                  this._runMarquee(overflow);
+                  return GLib.SOURCE_REMOVE;
+                },
+              );
+            },
+          });
+          return GLib.SOURCE_REMOVE;
+        },
+      );
+    }
+
+    _stopMarquee() {
+      if (this._marqueeTimeoutId) {
+        GLib.Source.remove(this._marqueeTimeoutId);
+        this._marqueeTimeoutId = 0;
+      }
+      this._nowPlayingLabel.remove_all_transitions();
+      this._nowPlayingLabel.translation_x = 0;
     }
 
     _updateGradient() {
@@ -445,6 +517,7 @@ const NightrideIndicator = GObject.registerClass(
     }
 
     destroy() {
+      this._stopMarquee();
       this._stopNoiseAnimation();
       this._stop();
       this._settings = null;
